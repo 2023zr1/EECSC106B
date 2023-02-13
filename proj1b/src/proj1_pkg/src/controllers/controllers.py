@@ -466,8 +466,12 @@ class WorkspaceVelocityController(Controller):
         target_velocity: (6,) ndarray of desired body-frame se(3) velocity (vx, vy, vz, wx, wy, wz).
         target_acceleration: ndarray of desired accelerations (should you need this?).
         """
-        raise NotImplementedError
-        control_input = None        
+        #raise NotImplementedError
+        curr_pos = utils.get_joint_positions(self.limb)
+        curr_vel = utils.get_joint_velocities(self.limb)
+
+        Us = 
+        control_input = np.matmul(self.kin.jacobian_pseudo_inverse(curr_pos), Us)    #prob not correct, project doc says it is in the baxter_pykdl package
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 
 
@@ -507,8 +511,14 @@ class PDJointVelocityController(Controller):
         target_velocity: 7x' :obj:`numpy.ndarray` of desired velocities
         target_acceleration: 7x' :obj:`numpy.ndarray` of desired accelerations
         """
-        raise NotImplementedError
-        control_input = None
+        #raise NotImplementedError
+        curr_pos = utils.get_joint_positions(self.limb)
+        curr_vel = utils.get_joint_velocities(self.limb)
+        e = target_position - curr_pos
+        e_dot = curr_vel
+        uff = target_velocity
+        ufb = np.matmul(self.Kp,e) + np.matmul(self.Kv,e_dot)
+        control_input = uff + ufb
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 
 class PDJointTorqueController(Controller):
@@ -550,6 +560,18 @@ class PDJointTorqueController(Controller):
         target_velocity: 7x' :obj:`numpy.ndarray` of desired velocities
         target_acceleration: 7x' :obj:`numpy.ndarray` of desired accelerations
         """
-        raise NotImplementedError
-        control_input = None
+        #raise NotImplementedError
+        curr_pos = utils.get_joint_positions(self.limb)
+        curr_vel = utils.get_joint_velocities(self.limb)
+
+        M = self._kin.inertia(curr_pos)
+        C = self._kin.coriolis(curr_pos, curr_vel)
+        G = 0.01*self._kin.gravity(curr_pos)
+        uff = np.matmul(M, target_acceleration) + np.matmul(C, target_velocity) + G
+    
+        e = target_position - curr_pos
+        e_dot = curr_vel
+        ufb = self.Kp*e + self.Kv*e_dot #Augmented PD Control Law
+        
+        control_input = uff + ufb
         self._limb.set_joint_torques(joint_array_to_dict(control_input, self._limb))

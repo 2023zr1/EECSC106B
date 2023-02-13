@@ -243,11 +243,11 @@ def define_trajectories(args):
     """ Define each type of trajectory with the appropriate parameters."""
     trajectory = None
     if args.task == 'line':
-        trajectory = LinearTrajectory()
+        trajectory = LinearTrajectory(3, [-1,7,0], [5,7,0])
     elif args.task == 'circle':
-        trajectory = CircularTrajectory()
+        trajectory = CircularTrajectory([4, 4, 0], 3, 4)
     elif args.task == 'polygon':
-        trajectory = PolygonalTrajectory()
+        trajectory = PolygonalTrajectory(4, 8)
     return trajectory
 
 if __name__ == "__main__":

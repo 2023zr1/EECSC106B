@@ -177,7 +177,8 @@ def main():
 
     rospy.init_node('moveit_node')
     # this is used for sending commands (velocity, torque, etc) to the robot
-    ik_solver = IK("base", "right_hand")
+    #ik_solver = IK("base", "right_hand")
+    ik_solver = None
     limb = intera_interface.Limb('right')
     # this is used to get the dynamics (inertia matrix, manipulator jacobian, etc) from the robot
     # in the current position, UNLESS you specify other joint angles.  see the source code

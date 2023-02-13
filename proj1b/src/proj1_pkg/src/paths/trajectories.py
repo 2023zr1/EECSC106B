@@ -140,15 +140,18 @@ class Trajectory:
 
 class LinearTrajectory(Trajectory):
 
-    def __init__(self):
+    def __init__(self, total_time, start_position, end_position):
         """
         Remember to call the constructor of Trajectory
+
         Parameters
         ----------
         ????? You're going to have to fill these in how you see fit
         """
-        pass
-        # Trajectory.__init__(self, ...)
+        Trajectory.__init__(self, total_time)
+        self.total_time = total_time
+        self.start_position = start_position
+        self.end_position = end_position
 
     def target_pose(self, time):
         """
@@ -157,47 +160,107 @@ class LinearTrajectory(Trajectory):
         the desired end-effector position, and the last four entries are the 
         desired end-effector orientation as a quaternion, all written in the 
         world frame.
+
         Hint: The end-effector pose with the gripper pointing down corresponds 
         to the quaternion [0, 1, 0, 0]. 
+
         Parameters
         ----------
-        time : float        
+        time : float
     
         Returns
         -------
         7x' :obj:`numpy.ndarray`
             desired configuration in workspace coordinates of the end effector
         """
-        pass
+        return [self.x_func0(time), self.x_func1(time), self.x_func2(time), 0, 1, 0, 0]
+
+    def x_func0(self, time):
+        k = (self.end_position[0] + self.start_position[0])/2.0
+        m = 8*(k - self.start_position[0])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return (0.5*m*(time**2)) + self.start_position[0]
+        else:
+            return (-0.5*m*(time**2)) + m*self.total_time*time + k - ((3/8.0)*m*(self.total_time**2))
+            # return (-0.5*m*(time**2)) + m*self.total_time*time + k + ((1/8.0)*m*(self.total_time**2)) - m*(self.total_time**2)/2.0
+    
+    def x_func1(self, time):
+        k = (self.end_position[1] + self.start_position[1])/2.0
+        m = 8*(k - self.start_position[1])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return (0.5*m*(time**2)) + self.start_position[1]
+        else:
+            return (-0.5*m*(time**2)) + m*self.total_time*time + k - ((3/8.0)*m*(self.total_time**2))
+            # return (-0.5*m*(time**2)) + m*self.total_time*time + k + ((1/8.0)*m*(self.total_time**2)) - m*(self.total_time**2)/2.0
+    
+    def x_func2(self, time):
+        k = (self.end_position[2] + self.start_position[2])/2.0
+        m = 8*(k - self.start_position[2])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return (0.5*m*(time**2)) + self.start_position[2]
+        else:
+            return (-0.5*m*(time**2)) + m*self.total_time*time + k - ((3/8.0)*m*(self.total_time**2))
+            # return (-0.5*m*(time**2)) + m*self.total_time*time + k + ((1/8.0)*m*(self.total_time**2)) - m*(self.total_time**2)/2.0
+
+    def v_func0(self, time):
+        k = (self.end_position[0] + self.start_position[0])/2.0
+        m = 8*(k - self.start_position[0])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return m*time
+        else:
+            return -m*time + m*self.total_time
+    
+    def v_func1(self, time):
+        k = (self.end_position[1] + self.start_position[1])/2.0
+        m = 8*(k - self.start_position[1])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return m*time
+        else:
+            return -m*time + m*self.total_time
+    
+    def v_func2(self, time):
+        k = (self.end_position[2] + self.start_position[2])/2.0
+        m = 8*(k - self.start_position[2])/(self.total_time**2)
+        if time <= self.total_time/2:
+            return m*time
+        else:
+            return -m*time + m*self.total_time
 
     def target_velocity(self, time):
         """
         Returns the end effector's desired body-frame velocity at time t as a 6D
         twist. Note that this needs to be a rigid-body velocity, i.e. a member 
         of se(3) expressed as a 6D vector.
-        The function get_g_matrix from utils may be useful to perform some frame
-        transformations.
+
         Parameters
         ----------
         time : float
+
         Returns
         -------
         6x' :obj:`numpy.ndarray`
             desired body-frame velocity of the end effector
         """
-        pass
+        return [self.v_func0(time), self.v_func1(time), self.v_func2(time), 0, 0, 0]
 
 class CircularTrajectory(Trajectory):
 
     def __init__(self, center_position, radius, total_time):
         """
         Remember to call the constructor of Trajectory
+
         Parameters
         ----------
         ????? You're going to have to fill these in how you see fit
         """
-        pass
-        # Trajectory.__init__(self, ...)
+        #thetadot = sin(x)
+        self.center = center_position
+        self.radius = radius
+        self.total_time = total_time
+        self.position = [self.center[1] + self.radius, 0, 0]
+        self.m = 8*np.pi/(total_time**2)
+        self.C = (2/total_time)*(np.pi + (3*self.m*(total_time**2)/8))
+        Trajectory.__init__(self, total_time)
 
     def target_pose(self, time):
         """
@@ -206,8 +269,10 @@ class CircularTrajectory(Trajectory):
         the desired end-effector position, and the last four entries are the 
         desired end-effector orientation as a quaternion, all written in the 
         world frame.
+
         Hint: The end-effector pose with the gripper pointing down corresponds 
         to the quaternion [0, 1, 0, 0]. 
+
         Parameters
         ----------
         time : float        
@@ -217,36 +282,64 @@ class CircularTrajectory(Trajectory):
         7x' :obj:`numpy.ndarray`
             desired configuration in workspace coordinates of the end effector
         """
-        pass
+        #self.position = [self.radius*np.cos(time), self.radius*np.sin(time), 0]
+        #return [self.position[0], self.position[1], 0, 0, 1, 0, 0]
+        #self.theta = self.omega*time
+        self.position = [self.center[0] + self.radius*np.cos(self.theta_func(time)), self.center[1] + self.radius*np.sin(self.theta_func(time))]
+        return [self.position[0], self.position[1], 0, 0, 1, 0, 0]
+
+    def theta_func(self, time):
+        if time <= self.total_time/2:
+            return self.m*(time**2)/2
+        else:
+            return (self.C*time) - (self.m*(time**2)/2)
+    
+    def thetadot(self, time):
+        if time <= self.total_time/2:
+            return self.m*time
+        else:
+            return self.C - (self.m*time)
 
     def target_velocity(self, time):
         """
         Returns the end effector's desired body-frame velocity at time t as a 6D
         twist. Note that this needs to be a rigid-body velocity, i.e. a member 
         of se(3) expressed as a 6D vector.
-        The function get_g_matrix from utils may be useful to perform some frame
-        transformations.
+
         Parameters
         ----------
         time : float
+
         Returns
         -------
         6x' :obj:`numpy.ndarray`
             desired body-frame velocity of the end effector
         """
-        pass
+        #self.alpha = np.arctan2(self.position[1], self.positiosn[0])
+        xdot = -self.radius*np.sin(self.theta_func(time))*self.thetadot(time)
+        ydot = self.radius*np.cos(self.theta_func(time))*self.thetadot(time)
+        return [xdot, ydot, 0, 0, 0, 1]
 
 class PolygonalTrajectory(Trajectory):
     def __init__(self, points, total_time):
         """
         Remember to call the constructor of Trajectory.
         You may wish to reuse other trajectories previously defined in this file.
+
         Parameters
         ----------
         ????? You're going to have to fill these in how you see fit
+
         """
-        pass
-        # Trajectory.__init__(self, total_time)
+        Trajectory.__init__(self, total_time)
+        self.points = points
+        self.total_time = total_time
+        self.trajectory1 = LinearTrajectory(int(self.total_time/self.points), [4,4,0], [8,4,0])
+        self.trajectory2 = LinearTrajectory(int(self.total_time/self.points), [8,4,0], [8,8,0])
+        self.trajectory3 = LinearTrajectory(int(self.total_time/self.points), [8,8,0], [4,8,0])
+        self.trajectory4 = LinearTrajectory(int(self.total_time/self.points), [4,8,0], [4,4,0])
+        self.current = self.trajectory1
+        self.factor = 1
 
     def target_pose(self, time):
         """
@@ -255,8 +348,10 @@ class PolygonalTrajectory(Trajectory):
         the desired end-effector position, and the last four entries are the 
         desired end-effector orientation as a quaternion, all written in the 
         world frame.
+
         Hint: The end-effector pose with the gripper pointing down corresponds 
         to the quaternion [0, 1, 0, 0]. 
+
         Parameters
         ----------
         time : float        
@@ -266,34 +361,50 @@ class PolygonalTrajectory(Trajectory):
         7x' :obj:`numpy.ndarray`
             desired configuration in workspace coordinates of the end effector
         """
-        pass
-        
+        self.choose_t(time)
+        return self.current.target_pose(self.time)
+
+    def choose_t(self, time):
+        if time <= self.total_time/4:
+            self.current = self.trajectory1
+            self.time = time
+        elif time <= self.total_time/2:
+            self.current = self.trajectory2
+            self.time = time - self.total_time/4
+        elif time <= (3*self.total_time)/4:
+            self.current = self.trajectory3
+            self.time = time - self.total_time/2
+        else:
+            self.current = self.trajectory4
+            self.time = time - (3*self.total_time)/4
+
     def target_velocity(self, time):
         """
         Returns the end effector's desired body-frame velocity at time t as a 6D
         twist. Note that this needs to be a rigid-body velocity, i.e. a member 
         of se(3) expressed as a 6D vector.
-        The function get_g_matrix from utils may be useful to perform some frame
-        transformations.
+
         Parameters
         ----------
         time : float
+
         Returns
         -------
         6x' :obj:`numpy.ndarray`
             desired body-frame velocity of the end effector
         """
-        pass
+        self.choose_t(time)
+        return self.current.target_velocity(self.time)
 
 def define_trajectories(args):
     """ Define each type of trajectory with the appropriate parameters."""
     trajectory = None
     if args.task == 'line':
-        trajectory = LinearTrajectory()
+        trajectory = LinearTrajectory(3, [0,0,0], [5,0,0])
     elif args.task == 'circle':
-        trajectory = CircularTrajectory()
+        trajectory = CircularTrajectory([0, 0, 0], 2, 4)
     elif args.task == 'polygon':
-        trajectory = PolygonalTrajectory()
+        trajectory = PolygonalTrajectory(4, 8)
     return trajectory
 
 if __name__ == '__main__':
