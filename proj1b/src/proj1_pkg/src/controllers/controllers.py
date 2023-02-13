@@ -467,11 +467,25 @@ class WorkspaceVelocityController(Controller):
         target_acceleration: ndarray of desired accelerations (should you need this?).
         """
         #raise NotImplementedError
-        curr_pos = utils.get_joint_positions(self.limb)
-        curr_vel = utils.get_joint_velocities(self.limb)
+        curr_pos = get_joint_positions(self._limb)
+        curr_vel = get_joint_velocities(self._limb)
 
-        Us = 
-        control_input = np.matmul(self.kin.jacobian_pseudo_inverse(curr_pos), Us)    #prob not correct, project doc says it is in the baxter_pykdl package
+        e = target_position - curr_pos
+        e_dot = curr_vel
+        
+        g_st = get_g_matrix(curr_pos[0:3], curr_pos[:3])
+        g_sd = get_g_matrix(target_position[0:3], target_position[:3])
+        g_td = np.matmul(np.linalg.inv(g_st), g_sd)
+
+        tmp_log = np.log(g_td)
+        ksi_td = vec(tmp_log[0, 3], tmp_log[1, 3], tmp_log[2, 3], tmp_log[2, 1], tmp_log[0, 2], tmp_log[1, 0])
+
+        ksi_td_s = np.matmul(adj(g_st), ksi_td)
+
+        V_d_s = g_sd
+        U_s = self.Kp*ksi_td_s + V_d_s
+
+        control_input = np.matmul(self.kin.jacobian_pseudo_inverse(), U_s)
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 
 
@@ -512,12 +526,12 @@ class PDJointVelocityController(Controller):
         target_acceleration: 7x' :obj:`numpy.ndarray` of desired accelerations
         """
         #raise NotImplementedError
-        curr_pos = utils.get_joint_positions(self.limb)
-        curr_vel = utils.get_joint_velocities(self.limb)
+        curr_pos = get_joint_positions(self._limb)
+        curr_vel = get_joint_velocities(self._limb)
         e = target_position - curr_pos
         e_dot = curr_vel
         uff = target_velocity
-        ufb = np.matmul(self.Kp,e) + np.matmul(self.Kv,e_dot)
+        ufb = self.Kp*e + self.Kv*e_dot
         control_input = uff + ufb
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 
@@ -561,8 +575,11 @@ class PDJointTorqueController(Controller):
         target_acceleration: 7x' :obj:`numpy.ndarray` of desired accelerations
         """
         #raise NotImplementedError
-        curr_pos = utils.get_joint_positions(self.limb)
-        curr_vel = utils.get_joint_velocities(self.limb)
+        curr_pos = get_joint_positions(self._limb)
+        curr_vel = get_joint_velocities(self._limb)
+
+        curr_pos = joint_array_to_dict(curr_pos, self._limb)
+        curr_vel = joint_array_to_dict(curr_pos, self._limb)
 
         M = self._kin.inertia(curr_pos)
         C = self._kin.coriolis(curr_pos, curr_vel)
