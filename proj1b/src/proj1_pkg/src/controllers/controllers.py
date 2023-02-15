@@ -485,7 +485,7 @@ class WorkspaceVelocityController(Controller):
         V_d_s = g_sd
         U_s = self.Kp*ksi_td_s + V_d_s
 
-        control_input = np.matmul(self.kin.jacobian_pseudo_inverse(), U_s)
+        control_input = np.matmul(self._kin.jacobian_pseudo_inverse(), U_s)
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 
 
@@ -531,7 +531,7 @@ class PDJointVelocityController(Controller):
         e = target_position - curr_pos
         e_dot = curr_vel
         uff = target_velocity
-        ufb = self.Kp*e + self.Kv*e_dot
+        ufb = self.Kp@e + self.Kv@e_dot
         control_input = uff + ufb
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
 

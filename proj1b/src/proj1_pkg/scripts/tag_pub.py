@@ -41,9 +41,9 @@ def tag_pub(tags):
         try:
             t = listener.getLatestCommonTime(from_frame, to_frame)
             pos, quat = listener.lookupTransform(from_frame, to_frame, t)
-            print 'Found marker {}'.format(tags[i])
+            print('Found marker {}'.format(tags[i]))
         except:
-            print 'Could not find marker {}'.format(tags[i])
+            print('Could not find marker {}'.format(tags[i]))
             continue
         if pos is not None:
             # pub.publish(*tag_pos)

@@ -85,8 +85,9 @@ def get_trajectory(limb, kin, ik_solver, tag_pos, args):
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
 
+    
     try:
-        trans = tfBuffer.lookup_transform('base', 'right_hand_gripper', rospy.Time(0), rospy.Duration(10.0))
+        trans = tfBuffer.lookup_transform('base', 'right_gripper_tip', rospy.Time(0), rospy.Duration(10.0))
     except Exception as e:
         print(e)
 
@@ -94,11 +95,13 @@ def get_trajectory(limb, kin, ik_solver, tag_pos, args):
     print("Current Position:", current_position)
 
     if task == 'line':
-        trajectory = LinearTrajectory()
+        print(current_position)
+        print(tag_pos)
+        trajectory = LinearTrajectory(2, current_position, tag_pos[0] + np.array([0,0,0.2]))
     elif task == 'circle':
-        trajectory = CircularTrajectory()
+        trajectory = CircularTrajectory(current_position, 2, 4)
     elif task == 'polygon':
-        trajectory = PolygonalTrajectory()
+        trajectory = PolygonalTrajectory(4, 8)
     else:
         raise ValueError('task {} not recognized'.format(task))
     path = MotionPath(limb, kin, ik_solver, trajectory)
@@ -118,18 +121,18 @@ def get_controller(controller_name, limb, kin):
     """
     if controller_name == 'workspace':
         # YOUR CODE HERE
-        Kp = None
-        Kv = None
+        Kp = np.array([0.01, 0.01, 0.01, 1, 1, 1])
+        Kv = np.array([0.02, 0.02, 0.02, 1, 1, 1])
         controller = WorkspaceVelocityController(limb, kin, Kp, Kv)
     elif controller_name == 'jointspace':
         # YOUR CODE HERE
-        Kp = None
-        Kv = None
+        Kp = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
+        Kv = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
         controller = PDJointVelocityController(limb, kin, Kp, Kv)
     elif controller_name == 'torque':
         # YOUR CODE HERE
-        Kp = None
-        Kv = None
+        Kp = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
+        Kv = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
         controller = PDJointTorqueController(limb, kin, Kp, Kv)
     elif controller_name == 'open_loop':
         controller = FeedforwardJointVelocityController(limb, kin)
