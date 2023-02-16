@@ -10,6 +10,9 @@ import time
 import numpy as np
 import signal
 
+sys.path.insert(0, '/home/cc/ee106b/sp23/class/ee106b-acd/106b-sp23-project-starter/proj1b/src/proj1_pkg/src')
+sys.path.insert(1, '/home/cc/ee106b/sp23/class/ee106b-acd/106b-sp23-project-starter/proj1b/src/baxter_pykdl/src')
+
 from paths.trajectories import LinearTrajectory, CircularTrajectory, PolygonalTrajectory
 from paths.paths import MotionPath
 from controllers.controllers import (
@@ -95,13 +98,14 @@ def get_trajectory(limb, kin, ik_solver, tag_pos, args):
     print("Current Position:", current_position)
 
     if task == 'line':
-        print(current_position)
-        print(tag_pos)
-        trajectory = LinearTrajectory(2, current_position, tag_pos[0] + np.array([0,0,0.2]))
+        trajectory = LinearTrajectory(10, current_position, tag_pos[0] + np.array([0,0,0.4]))
     elif task == 'circle':
-        trajectory = CircularTrajectory(current_position, 2, 4)
+        trajectory = CircularTrajectory(current_position, 0.1, 10)
     elif task == 'polygon':
-        trajectory = PolygonalTrajectory(4, 8)
+        first_AR = tag_pos[0] + np.array([0,0,0.4])
+        second_AR = tag_pos[1] + np.array([0,0,0.4])
+        third_AR = tag_pos[2] + np.array([0,0,0.4])
+        trajectory = PolygonalTrajectory(3, 20, first_AR, second_AR, third_AR)
     else:
         raise ValueError('task {} not recognized'.format(task))
     path = MotionPath(limb, kin, ik_solver, trajectory)
@@ -121,18 +125,23 @@ def get_controller(controller_name, limb, kin):
     """
     if controller_name == 'workspace':
         # YOUR CODE HERE
-        Kp = np.array([0.01, 0.01, 0.01, 1, 1, 1])
-        Kv = np.array([0.02, 0.02, 0.02, 1, 1, 1])
+        kp = 0.1
+        Kp = np.array([0.01, kp, 1, kp, kp, kp])
+        Kv = np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
         controller = WorkspaceVelocityController(limb, kin, Kp, Kv)
     elif controller_name == 'jointspace':
         # YOUR CODE HERE
-        Kp = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
-        Kv = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
+        kp = 0.1
+        Kp = 3 * np.array([kp, kp, kp, kp, kp, kp, kp])
+        # Kp = np.array([0.05, 0.1, 0.07, 0.02, 0.07, 0.1, 0.])
+        Kv = 0.01 * Kp
         controller = PDJointVelocityController(limb, kin, Kp, Kv)
     elif controller_name == 'torque':
         # YOUR CODE HERE
-        Kp = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
-        Kv = np.array([0.1, 0.1, 0.1, 1, 1, 1, 1])
+        Kp = np.array([600, 50, 600, 100, 200, 20, 300])
+        Kv = 5 * np.array([1,1,1,1,1,1,1])
+        # Kp = 0.2 * np.array([50, 50, 80, 50, 40, 20, 20])
+        # Kv = 5 * np.array([1,1,1,1,1,1,1])
         controller = PDJointTorqueController(limb, kin, Kp, Kv)
     elif controller_name == 'open_loop':
         controller = FeedforwardJointVelocityController(limb, kin)

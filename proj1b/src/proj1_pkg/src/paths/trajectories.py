@@ -321,7 +321,7 @@ class CircularTrajectory(Trajectory):
         return [xdot, ydot, 0, 0, 0, 1]
 
 class PolygonalTrajectory(Trajectory):
-    def __init__(self, points, total_time):
+    def __init__(self, points, total_time, first, second, third):
         """
         Remember to call the constructor of Trajectory.
         You may wish to reuse other trajectories previously defined in this file.
@@ -334,10 +334,9 @@ class PolygonalTrajectory(Trajectory):
         Trajectory.__init__(self, total_time)
         self.points = points
         self.total_time = total_time
-        self.trajectory1 = LinearTrajectory(int(self.total_time/self.points), [4,4,0], [8,4,0])
-        self.trajectory2 = LinearTrajectory(int(self.total_time/self.points), [8,4,0], [8,8,0])
-        self.trajectory3 = LinearTrajectory(int(self.total_time/self.points), [8,8,0], [4,8,0])
-        self.trajectory4 = LinearTrajectory(int(self.total_time/self.points), [4,8,0], [4,4,0])
+        self.trajectory1 = LinearTrajectory(int(self.total_time/self.points), first, second)
+        self.trajectory2 = LinearTrajectory(int(self.total_time/self.points), second, third)
+        self.trajectory3 = LinearTrajectory(int(self.total_time/self.points), third, first)
         self.current = self.trajectory1
         self.factor = 1
 
@@ -365,18 +364,15 @@ class PolygonalTrajectory(Trajectory):
         return self.current.target_pose(self.time)
 
     def choose_t(self, time):
-        if time <= self.total_time/4:
+        if time <= self.total_time/3:
             self.current = self.trajectory1
             self.time = time
-        elif time <= self.total_time/2:
+        elif time <= 2*self.total_time/3:
             self.current = self.trajectory2
-            self.time = time - self.total_time/4
-        elif time <= (3*self.total_time)/4:
-            self.current = self.trajectory3
-            self.time = time - self.total_time/2
+            self.time = time - self.total_time/3
         else:
-            self.current = self.trajectory4
-            self.time = time - (3*self.total_time)/4
+            self.current = self.trajectory3
+            self.time = time - 2*self.total_time/3
 
     def target_velocity(self, time):
         """

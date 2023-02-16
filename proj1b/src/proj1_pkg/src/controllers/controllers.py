@@ -467,23 +467,52 @@ class WorkspaceVelocityController(Controller):
         target_acceleration: ndarray of desired accelerations (should you need this?).
         """
         #raise NotImplementedError
-        curr_pos = get_joint_positions(self._limb)
-        curr_vel = get_joint_velocities(self._limb)
+        curr_pos1 = get_joint_positions(self._limb)
+        curr_vel1 = get_joint_velocities(self._limb)
 
-        e = target_position - curr_pos
-        e_dot = curr_vel
+        curr_pos = joint_array_to_dict(curr_pos1, self._limb)
+        curr_vel = joint_array_to_dict(curr_vel1, self._limb)
+
+        g_st = self._kin.forward_position_kinematics(joint_values=curr_pos)
+        g_st = get_g_matrix(g_st[0:3], g_st[3:7])
+        g_sd = get_g_matrix(target_position[0:3], target_position[3:7])
+
+        V_d_s = target_velocity.reshape((6,1))
+
+        g_td = np.linalg.inv(g_st) @ g_sd
+
+        R = g_td[:3,:3]
+        p = g_td[:3,3]
+        theta = np.arccos((np.trace(R) - 1)/2)
+        omega_hat = 1/(2*np.sin(theta))*(R - R.T)
+        omega = omega_hat[2][1], omega_hat[0][2], omega_hat[1][0]
+        norm_omega = np.linalg.norm(omega)
+        third_term = ((2*np.sin(norm_omega)-norm_omega*(1+np.cos(norm_omega)))/(2*(norm_omega**2)*np.sin(norm_omega))) * (omega_hat@omega_hat)
+        A_inv = np.eye(3) - 0.5*omega_hat + third_term
+        v = A_inv@p
+        # xi_hat = np.array([[omega_hat, A_inv@p], [0,0]])
+        xi_td = np.array([v[0], v[1], v[2], omega[0], omega[1], omega[2]])
         
-        g_st = get_g_matrix(curr_pos[0:3], curr_pos[:3])
-        g_sd = get_g_matrix(target_position[0:3], target_position[:3])
-        g_td = np.matmul(np.linalg.inv(g_st), g_sd)
 
-        tmp_log = np.log(g_td)
-        ksi_td = vec(tmp_log[0, 3], tmp_log[1, 3], tmp_log[2, 3], tmp_log[2, 1], tmp_log[0, 2], tmp_log[1, 0])
+        xi_s_td = np.reshape(adj(g_st) @ xi_td, (6,1)) #adj(g_st) @ xi_td.reshape((6,1))
 
-        ksi_td_s = np.matmul(adj(g_st), ksi_td)
+        U_s = self.Kp@xi_s_td + V_d_s
 
-        V_d_s = g_sd
-        U_s = self.Kp*ksi_td_s + V_d_s
+
+        # e = target_position - curr_pos
+        # e_dot = target_velocity - curr_vel
+        
+        # g_st = get_g_matrix(curr_pos[0:2], curr_pos[:2])
+        # g_sd = get_g_matrix(target_position[0:2], target_position[:2])
+        # g_td = np.matmul(np.linalg.inv(g_st), g_sd)
+
+        # tmp_log = np.log(g_td)
+        # ksi_td = vec(tmp_log[0, 3], tmp_log[1, 3], tmp_log[2, 3], tmp_log[2, 1], tmp_log[0, 2], tmp_log[1, 0])
+
+        # ksi_td_s = np.matmul(adj(g_st), ksi_td)
+
+        # V_d_s = g_sd
+        # U_s = self.Kp*ksi_td_s + V_d_s
 
         control_input = np.matmul(self._kin.jacobian_pseudo_inverse(), U_s)
         self._limb.set_joint_velocities(joint_array_to_dict(control_input, self._limb))
@@ -529,7 +558,7 @@ class PDJointVelocityController(Controller):
         curr_pos = get_joint_positions(self._limb)
         curr_vel = get_joint_velocities(self._limb)
         e = target_position - curr_pos
-        e_dot = curr_vel
+        e_dot = -curr_vel
         uff = target_velocity
         ufb = self.Kp@e + self.Kv@e_dot
         control_input = uff + ufb
@@ -575,20 +604,28 @@ class PDJointTorqueController(Controller):
         target_acceleration: 7x' :obj:`numpy.ndarray` of desired accelerations
         """
         #raise NotImplementedError
-        curr_pos = get_joint_positions(self._limb)
-        curr_vel = get_joint_velocities(self._limb)
 
-        curr_pos = joint_array_to_dict(curr_pos, self._limb)
-        curr_vel = joint_array_to_dict(curr_pos, self._limb)
+
+        curr_pos_raw = get_joint_positions(self._limb)
+        curr_vel_raw = get_joint_velocities(self._limb)
+
+        curr_pos = joint_array_to_dict(curr_pos_raw, self._limb)
+        curr_vel = joint_array_to_dict(curr_vel_raw, self._limb)
 
         M = self._kin.inertia(curr_pos)
         C = self._kin.coriolis(curr_pos, curr_vel)
         G = 0.01*self._kin.gravity(curr_pos)
-        uff = np.matmul(M, target_acceleration) + np.matmul(C, target_velocity) + G
-    
-        e = target_position - curr_pos
-        e_dot = curr_vel
-        ufb = self.Kp*e + self.Kv*e_dot #Augmented PD Control Law
-        
+
+        target_acceleration = target_acceleration.reshape((7, 1))
+
+        uff = M@target_acceleration + C + G
+
+
+        e = target_position - curr_pos_raw
+        e_dot = -curr_vel_raw
+        ufb = self.Kp@e + self.Kv@e_dot #Augmented PD Control Law
+        ufb = ufb.reshape((7,1))
+
+
         control_input = uff + ufb
         self._limb.set_joint_torques(joint_array_to_dict(control_input, self._limb))
